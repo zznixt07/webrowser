@@ -1,6 +1,8 @@
 import ssl
 import socket
+from tkinter.constants import W
 from typing import Dict, List, Literal, Optional, TextIO, Tuple
+import tkinter
 
 HTTP_VER: str = '1.1'
 SUPPORTED_URLS: Tuple[str, ...] = (
@@ -104,14 +106,31 @@ def show(body: str):
             print(c, end='')
 
 
-def load(url: str) -> None:
-    show(request(url)[1])
+class Browser:
+
+    width: int = 800
+    height: int = 600
+
+    def __init__(self):
+        self.window: tkinter.Tk = tkinter.Tk()
+        self.canvas: tkinter.Canvas = tkinter.Canvas(
+            self.window, width=self.width, height=self.height
+        )
+        self.canvas.pack()
+
+    def load(self, url: str) -> None:
+        self.canvas.create_rectangle(10, 20, 400, 500)
+        self.canvas.create_oval(100, 100, 150, 150)
+        self.canvas.create_text(200, 150, text='Hi!')
+        # show(request(url)[1])
 
 
 if __name__ == '__main__':
     url: str = 'https://example.org'
-    # url: str = 'http://example.org'
     headers: Dict[str, str]
     body: str
     headers, body = request(url)
-    show(body)
+    browser: Browser = Browser()
+    browser.load(url)
+    tkinter.mainloop()
+    # show(body)
