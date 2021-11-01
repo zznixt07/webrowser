@@ -32,7 +32,10 @@ def url_parse(url: str) -> Tuple[Scheme, int, str, str]:
         path = ''
     else:
         host, path = splitted
-    path = '/' + path
+    if scheme == 'file':
+        port = -1
+    else:
+        path = '/' + path
     return scheme, port, host, path
 
 
