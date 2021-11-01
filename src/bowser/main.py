@@ -13,6 +13,9 @@ SUPPORTED_URLS: Tuple[str, ...] = (
 Scheme = Literal[SUPPORTED_URLS]
 CTX: ssl.SSLContext = ssl.create_default_context()
 
+HSTEP: int = 8
+VSTEP: int = 19
+
 
 def url_parse(url: str) -> Tuple[Scheme, int, str, str]:
     scheme: Scheme
@@ -108,10 +111,26 @@ def lex(body: str) -> str:
     return text
 
 
+def layout(text: str) -> List[Tuple[int, int, str]]:
+    max_line_length: int = min(Browser.width - HSTEP, 480)
+    cursor_x: int = HSTEP
+    cursor_y: int = VSTEP
+    display_list: List[Tuple[int, int, str]] = []
+    for c in text:
+        display_list.append((cursor_x, cursor_y, c))
+        cursor_x += HSTEP
+        if cursor_x >= max_line_length:
+            cursor_x = HSTEP
+            cursor_y += VSTEP
+
+    return display_list
+
+
 class Browser:
 
     width: int = 1000
     height: int = 800
+    scroll_step: int = 11
 
     def __init__(self):
         self.window: tkinter.Tk = tkinter.Tk()
@@ -119,30 +138,37 @@ class Browser:
             self.window, width=self.width, height=self.height
         )
         self.canvas.pack()
+        self.scroll: int = 0
+        self.display_list: List[Tuple[int, int, str]] = []
+        self.window.bind("<Up>", self.scroll_up)
+        self.window.bind("<Down>", self.scroll_down)
 
     def load(self, url: str) -> None:
-        self.canvas.create_rectangle(10, 20, 400, 500)
-        self.canvas.create_oval(100, 100, 150, 150)
         headers: Dict[str, str]
         body: str
         headers, body = request(url)
         text: str = lex(body)
-        max_line_length: int = 79
-        hstep: int = 8
-        vstep: int = 19
-        cursor_x: int = hstep
-        cursor_y: int = vstep
-        i: int = 0
-        for c in text:
-            self.canvas.create_text(cursor_x, cursor_y, text=c)
-            if i < max_line_length:
-                i += 1
-                cursor_x += hstep
-            else:
-                i = 0
-                cursor_x = hstep
-                cursor_y += vstep
-            # print(i, end=' ')
+        self.display_list = layout(text)
+        self.draw(self.display_list)
+
+    def draw(self, display_list: List[Tuple[int, int, str]]):
+        for x, y, c in display_list:
+            y = y + self.scroll
+            if y < VSTEP:
+                continue
+            if y > self.height - VSTEP:
+                continue
+            self.canvas.create_text(x, y, text=c)
+
+    def scroll_down(self, e: tkinter.Event):
+        self.scroll += self.scroll_step
+        self.canvas.delete('all')
+        self.draw(self.display_list)
+
+    def scroll_up(self, e: tkinter.Event):
+        self.scroll -= self.scroll_step
+        self.canvas.delete('all')
+        self.draw(self.display_list)
 
 
 if __name__ == '__main__':
