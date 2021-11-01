@@ -153,20 +153,20 @@ class Browser:
 
     def draw(self, display_list: List[Tuple[int, int, str]]):
         for x, y, c in display_list:
-            y = y + self.scroll
+            y = y - self.scroll
             if y < VSTEP:
                 continue
             if y > self.height - VSTEP:
                 continue
             self.canvas.create_text(x, y, text=c)
 
-    def scroll_down(self, e: tkinter.Event):
-        self.scroll += self.scroll_step
+    def scroll_up(self, e: tkinter.Event):
+        self.scroll -= self.scroll_step
         self.canvas.delete('all')
         self.draw(self.display_list)
 
-    def scroll_up(self, e: tkinter.Event):
-        self.scroll -= self.scroll_step
+    def scroll_down(self, e: tkinter.Event):
+        self.scroll += self.scroll_step
         self.canvas.delete('all')
         self.draw(self.display_list)
 
