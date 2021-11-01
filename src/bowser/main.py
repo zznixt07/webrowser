@@ -94,7 +94,8 @@ def request(
     return resp_headers, body
 
 
-def show(body: str):
+def lex(body: str) -> str:
+    text: str = ""
     in_angle: bool = False
     c: str
     for c in body:
@@ -103,13 +104,14 @@ def show(body: str):
         elif c == '>':
             in_angle = False
         elif not in_angle:
-            print(c, end='')
+            text += c
+    return text
 
 
 class Browser:
 
-    width: int = 800
-    height: int = 600
+    width: int = 1000
+    height: int = 800
 
     def __init__(self):
         self.window: tkinter.Tk = tkinter.Tk()
@@ -121,16 +123,31 @@ class Browser:
     def load(self, url: str) -> None:
         self.canvas.create_rectangle(10, 20, 400, 500)
         self.canvas.create_oval(100, 100, 150, 150)
-        self.canvas.create_text(200, 150, text='Hi!')
-        # show(request(url)[1])
+        headers: Dict[str, str]
+        body: str
+        headers, body = request(url)
+        text: str = lex(body)
+        max_line_length: int = 79
+        hstep: int = 8
+        vstep: int = 19
+        cursor_x: int = hstep
+        cursor_y: int = vstep
+        i: int = 0
+        for c in text:
+            self.canvas.create_text(cursor_x, cursor_y, text=c)
+            if i < max_line_length:
+                i += 1
+                cursor_x += hstep
+            else:
+                i = 0
+                cursor_x = hstep
+                cursor_y += vstep
+            # print(i, end=' ')
 
 
 if __name__ == '__main__':
     url: str = 'https://example.org'
-    headers: Dict[str, str]
-    body: str
-    headers, body = request(url)
+    # url = 'https://www.zggdwx.com/xiyou/1.html'
     browser: Browser = Browser()
     browser.load(url)
     tkinter.mainloop()
-    # show(body)
