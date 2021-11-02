@@ -1,7 +1,6 @@
 import ssl
 import socket
-from tkinter.constants import W
-from typing import Dict, List, Literal, Optional, TextIO, Tuple
+from typing import Any, Dict, List, Literal, Optional, TextIO, Tuple
 import tkinter
 
 HTTP_VER: str = '1.1'
@@ -108,11 +107,12 @@ def lex(body: str) -> str:
             in_angle = False
         elif not in_angle:
             text += c
+
     return text
 
 
 def layout(text: str) -> List[Tuple[int, int, str]]:
-    max_line_length: int = min(Browser.width - HSTEP, 480)
+    max_line_length: int = Browser.width - HSTEP
     cursor_x: int = HSTEP
     cursor_y: int = VSTEP
     display_list: List[Tuple[int, int, str]] = []
@@ -130,7 +130,7 @@ class Browser:
 
     width: int = 1000
     height: int = 800
-    scroll_step: int = 11
+    scroll_step: int = 30
 
     def __init__(self):
         self.window: tkinter.Tk = tkinter.Tk()
@@ -139,9 +139,9 @@ class Browser:
         )
         self.canvas.pack()
         self.scroll: int = 0
+        self.last_y: int = 0
         self.display_list: List[Tuple[int, int, str]] = []
-        self.window.bind("<Up>", self.scroll_up)
-        self.window.bind("<Down>", self.scroll_down)
+        self.window.bind("<MouseWheel>", self.scroll_towards)
 
     def load(self, url: str) -> None:
         headers: Dict[str, str]
@@ -152,6 +152,9 @@ class Browser:
         self.draw(self.display_list)
 
     def draw(self, display_list: List[Tuple[int, int, str]]):
+        x: int
+        y: int = 0
+        c: str
         for x, y, c in display_list:
             y = y - self.scroll
             if y < VSTEP:
@@ -159,21 +162,30 @@ class Browser:
             if y > self.height - VSTEP:
                 continue
             self.canvas.create_text(x, y, text=c)
+        self.last_y = y
 
-    def scroll_up(self, e: tkinter.Event):
-        self.scroll -= self.scroll_step
-        self.canvas.delete('all')
-        self.draw(self.display_list)
-
-    def scroll_down(self, e: tkinter.Event):
-        self.scroll += self.scroll_step
+    def scroll_towards(self, e: tkinter.Event):
+        if self.scroll < 0:  # stop scrolling past the top
+            self.scroll = 0
+            return
+        if e.delta == 0:
+            return
+        if e.delta > 0:
+            # scroll up
+            self.scroll -= self.scroll_step
+        else:
+            # scroll down
+            # stop scrolling past the bottom
+            if self.last_y <= self.height - VSTEP:
+                return
+            self.scroll += self.scroll_step
         self.canvas.delete('all')
         self.draw(self.display_list)
 
 
 if __name__ == '__main__':
     url: str = 'https://example.org'
-    # url = 'https://www.zggdwx.com/xiyou/1.html'
+    url = 'https://danluu.com/math-bias/'
     browser: Browser = Browser()
     browser.load(url)
     tkinter.mainloop()
