@@ -1,6 +1,7 @@
 import ssl
 import socket
-from typing import Any, Dict, List, Literal, Optional, TextIO, Tuple
+import logging
+from typing import Dict, List, Literal, Optional, TextIO, Tuple
 import tkinter
 
 HTTP_VER: str = '1.1'
@@ -14,6 +15,7 @@ CTX: ssl.SSLContext = ssl.create_default_context()
 
 HSTEP: int = 8
 VSTEP: int = 19
+logger = logging.getLogger('webrowser')
 
 
 def url_parse(url: str) -> Tuple[Scheme, int, str, str]:
@@ -116,30 +118,31 @@ def layout(text: str) -> List[Tuple[int, int, str]]:
     cursor_x: int = HSTEP
     cursor_y: int = VSTEP
     display_list: List[Tuple[int, int, str]] = []
+    c: str
     for c in text:
         display_list.append((cursor_x, cursor_y, c))
         cursor_x += HSTEP
         if cursor_x >= max_line_length:
             cursor_x = HSTEP
             cursor_y += VSTEP
-
     return display_list
 
 
 class Browser:
 
-    width: int = 1000
-    height: int = 800
+    width: int = 1300
+    height: int = 700  # do not exceed display height else scrolling wont work
     scroll_step: int = 30
 
     def __init__(self):
+        logger.debug('browser height: %d', self.height)
         self.window: tkinter.Tk = tkinter.Tk()
         self.canvas: tkinter.Canvas = tkinter.Canvas(
             self.window, width=self.width, height=self.height
         )
         self.canvas.pack()
         self.scroll: int = 0
-        self.last_y: int = 0
+        self.last_line_y_coord: int = self.height
         self.display_list: List[Tuple[int, int, str]] = []
         self.window.bind("<MouseWheel>", self.scroll_towards)
 
@@ -149,41 +152,61 @@ class Browser:
         headers, body = request(url)
         text: str = lex(body)
         self.display_list = layout(text)
+        logger.debug(
+            'display_list[0] = %s display_list[-1] = %s',
+            self.display_list[0],
+            self.display_list[-1],
+        )
         self.draw(self.display_list)
 
     def draw(self, display_list: List[Tuple[int, int, str]]):
         x: int
-        y: int = 0
+        y: int = (
+            self.last_line_y_coord + self.scroll
+        )  # to revert value of self.last_line_y_coord on empty display_list
         c: str
         for x, y, c in display_list:
-            y = y - self.scroll
-            if y < VSTEP:
+            scrolled_y: int = y - self.scroll
+            if scrolled_y < VSTEP:
                 continue
-            if y > self.height - VSTEP:
+            if scrolled_y > self.height - VSTEP:
                 continue
-            self.canvas.create_text(x, y, text=c)
-        self.last_y = y
+            self.canvas.create_text(x, scrolled_y, text=c)
+        self.last_line_y_coord = y - self.scroll
 
     def scroll_towards(self, e: tkinter.Event):
+        logger.debug('last_line_y_coord = %d', self.last_line_y_coord)
         if self.scroll < 0:  # stop scrolling past the top
+            logger.debug('not scrolling. SOL')
             self.scroll = 0
             return
         if e.delta == 0:
             return
         if e.delta > 0:
             # scroll up
+            logger.debug('scrolling up..')
             self.scroll -= self.scroll_step
         else:
             # scroll down
             # stop scrolling past the bottom
-            if self.last_y <= self.height - VSTEP:
+            if self.last_line_y_coord <= self.height - VSTEP:
+                logger.debug('height - vstep = %d', self.height - VSTEP)
+                logger.debug('not scrolling. EOL')
                 return
+            logger.debug('scrolling down..')
             self.scroll += self.scroll_step
         self.canvas.delete('all')
         self.draw(self.display_list)
 
 
 if __name__ == '__main__':
+    stream_handler = logging.StreamHandler()
+    stream_handler.formatter = logging.Formatter()
+    stream_handler.setLevel(10)
+    logger.setLevel(10)
+    logger.addHandler(stream_handler)
+    logging.disable()
+
     url: str = 'https://example.org'
     url = 'https://danluu.com/math-bias/'
     browser: Browser = Browser()
